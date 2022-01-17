@@ -1,32 +1,46 @@
 import socket
 import json
+import sys
 
-HOST = '127.0.0.1'  # The server's hostname or IP address
-PORT = 65432        # The port used by the server
+ClientSocket = socket.socket()
+host = '127.0.0.1'
+port = 1233
+NOME=""
 
-def inserimento(testo):
-  print(testo)
-  valore=input(">>>")
-  return valore
+print('Connessione in corso')
+try:
+  ClientSocket.connect((host, port))
+except socket.error as e:
+  print(str(e))
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-  s.connect((HOST, PORT))
-  while True:
-    # Prendo il primo numero
-    primoNumero=inserimento("Inserisci il primo numero. exit() per uscire")
-    # Controllo se l'utente vuole uscire. In questo caso esco dal ciclo while. Il client chiuderà la connessione uscendo dal with
-    if primoNumero=="exit()":
-      break
-    # Converto a float
-    primoNumero=float(primoNumero)
-    # Inserimento altri parametri
-    operazione=inserimento("Inserisci l'operazione(+,-,*,/,%)")
-    secondoNumero=float(inserimento("Inserisci il secondo numero"))
-    # Preparo il messaggio. Attenzione al dumps
-    messaggio=json.dumps({'primoNumero':primoNumero,'operazione':operazione,'secondoNumero':secondoNumero})
-    # Invio il messaggio. Attenzione all'encode
-    s.sendall(messaggio.encode("UTF-8"))
-    # Aspetto la risposta del server
-    data = s.recv(1024)
-    # Stampo la risposta del server
-    print('Risultato:', data.decode())
+Response = ClientSocket.recv(1024)
+while True:
+  print("Inserisci il tuo nickname")
+  nome=input(">>>")
+  data={'messaggio':nome,'nome':NOME}
+  data=json.dumps(data)
+  ClientSocket.send(str.encode(data))
+  Response = ClientSocket.recv(1024)
+  data=Response.decode('utf-8')
+  data=json.loads(data)
+  if data['nome']!="":
+    print(data['messaggio'])
+    print(data)
+    NOME=data['nome']
+    break
+  else:
+    print(data['messaggio'])
+while True:
+  # msg = input('>>>')
+  try:
+    # data={'messaggio':msg,'nome':NOME}
+    # data=json.dumps(data)
+    # ClientSocket.send(str.encode(data))
+    Response = ClientSocket.recv(1024)
+    data=Response.decode('utf-8')
+    data=json.loads(data)
+    print(f"{data['nome']}:{data['messaggio']}")
+  except KeyboardInterrupt:
+    print("Dentro")
+    sys.exit(0)
+ClientSocket.close()

@@ -1,45 +1,54 @@
 import socket
+import os
 import json
+from _thread import *
 
-HOST = '127.0.0.1'  # Indirizzo dell'interfaccia standard di loopback (localhost)
-PORT = 65432        # Porta di ascolto, la lista di quelle utilizzabili parte da >1023)
+ServerSocket = socket.socket()
+host = '127.0.0.1'
+port = 1233
+ThreadCount = 0
+try:
+    ServerSocket.bind((host, port))
+except socket.error as e:
+    print(str(e))
 
-def eseguiCalcolo(data):
-  primoNumero=data['primoNumero']
-  operazione=data['operazione']
-  secondoNumero=data['secondoNumero']
-  if operazione=="+":
-    return str(primoNumero+secondoNumero)
-  elif operazione=="-":
-    return str(primoNumero-secondoNumero)
-  elif operazione=="*":
-    return str(primoNumero*secondoNumero)
-  elif operazione=="/":
-    if secondoNumero==0:
-      return "Non puoi dividere per 0"
-    else:
-      return str(primoNumero/secondoNumero)
-  elif operazione=="%":
-    return str(primoNumero%secondoNumero)
-  return "Operazione non riconosciuta"
+print('Waiting for a Connection..')
+nomi=[]
+ServerSocket.listen(5)
 
-with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-  s.bind((HOST, PORT))
-  s.listen()
-  print("[*] In ascolto su %s:%d" % (HOST, PORT))
-  clientsocket, address = s.accept()
-  with clientsocket as cs:
-      print('Connessione da', address)
-      while True:
-          data = cs.recv(1024) # Attendo che il server riceva le informazioni
-          # Se il server riceve un vettore vuoto presume che il client si sia disconnesso
-          if not data:
-            break
-          # Decodifico il vettore di byte ricevuto dal client
-          data=data.decode()
-          # Trasformo da stringa a json
-          data=json.loads(data)
-          # Eseguo i calcoli.
-          ris=eseguiCalcolo(data)
-          # Restituisco la stringa
-          cs.sendall(ris.encode("UTF-8"))
+
+def threaded_client(connection):
+  connection.send(str.encode('Welcome to the Servern'))
+  while True:
+    data = connection.recv(2048)
+    print(data)
+    if not data:
+      break
+    data=json.loads(data)
+    if data['messaggio']=="stop()":
+      os._exit(0)
+    if data['nome']=="":
+      if data['messaggio'] in nomi:
+        data={'messaggio':"Nome già preso",'nome':''}
+      else:
+        data={'messaggio':"Benvenuto",'nome':data['messaggio']}
+        nomi.append(data['nome'])
+      data=json.dumps(data)
+      connection.send(str.encode(data))
+      continue
+    data=json.dumps(data)
+    for client in clients:
+      try:
+        client.send(str.encode(data))
+      except:
+        pass
+  connection.close()
+clients=[]
+while True:
+  Client, address = ServerSocket.accept()
+  clients.append(Client)
+  print('Connected to: ' + address[0] + ':' + str(address[1]))
+  start_new_thread(threaded_client, (Client, ))
+  ThreadCount += 1
+  print('Thread Number: ' + str(ThreadCount))
+ServerSocket.close()
